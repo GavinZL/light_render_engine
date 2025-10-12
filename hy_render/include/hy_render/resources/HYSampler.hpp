@@ -1,6 +1,6 @@
 #pragma once
 
-#include "HYRenderDef.hpp"
+#include "../HYRenderDef.hpp"
 
 namespace hyengine {
 namespace render {

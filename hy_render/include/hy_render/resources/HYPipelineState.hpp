@@ -1,6 +1,6 @@
 #pragma once
 
-#include "HYRenderDef.hpp"
+#include "../HYRenderDef.hpp"
 
 namespace hyengine {
 namespace render {
@@ -32,6 +32,11 @@ public:
      * @brief 启用/禁用裁剪测试
      */
     virtual void enableScissor(bool flag) = 0;
+
+    /**
+     * @brief 设置剥除模式
+     */
+    virtual void setCullMode(CullMode mode) = 0;
 
     /**
      * @brief 设置图元类型

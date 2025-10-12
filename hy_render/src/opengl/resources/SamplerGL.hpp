@@ -1,10 +1,26 @@
 #pragma once
-#include "hy_render/resources/HY.hpp"
-namespace hyengine { namespace render {
-class SamplerGL : public HY {
+
+#include "../../core/HYResourceCommon.hpp"
+
+namespace hyengine {
+namespace render {
+
+/**
+ * @brief OpenGL采样器实现
+ */
+class SamplerGL : public HYSampler {
 public:
-    SamplerGL() = default;
-    virtual ~SamplerGL() = default;
-    ResourceHandle getResourceHandle() const override { return ResourceHandle(); }
+    explicit SamplerGL(const SamplerDesc& desc);
+    virtual ~SamplerGL();
+
+    const SamplerDesc& getDesc() const override { return mDesc; }
+    void bind(uint32_t unit) override;
+    ResourceHandle getResourceHandle() const override;
+
+private:
+    SamplerDesc mDesc;
+    unsigned int mSamplerID = 0;
 };
-}}
+
+} // namespace render
+} // namespace hyengine
