@@ -1,0 +1,1 @@
+// HYFence.cpp implementation
