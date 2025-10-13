@@ -19,6 +19,11 @@ TaskOperator::TaskOperator(TaskMark mark, CallBack callback)
 
 void TaskOperator::operator()()
 {
+    if (mIsCancelled.load()) {
+        // 任务已取消，不执行
+        return;
+    }
+    
     recordRunStart();
     if (mCallBack)
     {

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <functional>
+#include <atomic>
 #include "TaskOperator.h"
 #include "TaskQueueDefine.h"
 namespace task
@@ -30,6 +31,10 @@ public:
         return std::static_pointer_cast<T>(mUserData);
     }
 
+    // 任务控制 - 新增取消功能
+    virtual void cancel() { mIsCancelled.store(true); }
+    virtual bool isCancelled() const { return mIsCancelled.load(); }
+
     // 任务标记
     inline TaskMark taskMark() const
     {
@@ -47,6 +52,7 @@ private:
     CallBack                      mCallBack{ nullptr };
     mutable std::shared_ptr<void> mUserData{ nullptr };
     TaskMark                      mTaskMark{ TaskMark::TM_Unknown };
+    std::atomic<bool>            mIsCancelled{ false };  // 任务取消标记
 
 protected:
     uint64_t mTaskCallStartTime{ 0 };  ///调用开始时间
