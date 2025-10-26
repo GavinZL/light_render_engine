@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# 生成编译数据库，用于IDE代码导航和补全
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # 编译选项
 if(MSVC)
     add_compile_options(/W4)

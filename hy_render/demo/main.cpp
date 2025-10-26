@@ -6,7 +6,7 @@
 #include <cstring>
 
 #ifndef USE_GLFW
-#define USE_GLFW 0
+#define USE_GLFW 1
 #endif
 
 #if USE_GLFW
@@ -144,11 +144,11 @@ int runWithGLFW() {
     
     // 渲染循环
     int frame = 0;
-    while (!glfwWindowShouldClose(window) && frame < 100) { // 限制帧数避免无限循环
+    while (!glfwWindowShouldClose(window) /*&& frame < 100*/) { // 限制帧数避免无限循环
         processInput(window);
         
         // 模拟渲染命令
-        if (frame % 30 == 0) { // 每30帧打印一次
+        if (frame % 300 == 0) { // 每30帧打印一次
             std::cout << "Frame " << frame << ": Rendering triangle..." << std::endl;
         }
         
