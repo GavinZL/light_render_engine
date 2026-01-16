@@ -49,6 +49,9 @@ public:
     ResourceHandle getFragmentStageHandle() const override;
     const ShaderDesc& getDesc() const override { return mDesc; }
     ResourceHandle getResourceHandle() const override;
+    
+    // Metal特有方法
+    void* getMetalLibrary() const;
 
 private:
     void buildReflection() const; // 5.1.3 新增：构建反射信息

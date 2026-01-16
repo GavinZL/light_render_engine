@@ -8,6 +8,7 @@
 #include "resources/RenderPassMtl.hpp"
 #include "resources/FenceMtl.hpp"
 #include "resources/VertexArrayMtl.hpp"
+#import <Metal/Metal.h>
 #include <iostream>
 
 namespace hyengine {
@@ -26,27 +27,26 @@ RenderContextMtl::RenderContextMtl() {
 void RenderContextMtl::initializeMetalDevice() {
     std::cout << "[RenderContextMtl] 初始化Metal设备..." << std::endl;
     
-    // TODO: 实际实现中应该：
-    // mDevice = MTLCreateSystemDefaultDevice();
-    // if (!mDevice) {
-    //     std::cerr << "[RenderContextMtl] 错误: 无法创建Metal设备" << std::endl;
-    //     return;
-    // }
-    //
-    // // 创建命令队列
-    // mCommandQueue = [mDevice newCommandQueue];
-    // if (!mCommandQueue) {
-    //     std::cerr << "[RenderContextMtl] 错误: 无法创建命令队列" << std::endl;
-    //     return;
-    // }
-    //
-    // // 获取设备名称
-    // mDeviceName = std::string([[mDevice name] UTF8String]);
+    // 创建默认Metal设备
+    id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+    if (!device) {
+        std::cerr << "[RenderContextMtl] 错误: 无法创建Metal设备" << std::endl;
+        return;
+    }
     
-    // 模拟设备初始化
-    mDevice = reinterpret_cast<void*>(0x1);
-    mCommandQueue = reinterpret_cast<void*>(0x2);
-    mDeviceName = "Apple M1/M2/M3 (模拟)";
+    mDevice = (__bridge_retained void*)device;
+    
+    // 创建命令队列
+    id<MTLCommandQueue> commandQueue = [device newCommandQueue];
+    if (!commandQueue) {
+        std::cerr << "[RenderContextMtl] 错误: 无法创建命令队列" << std::endl;
+        return;
+    }
+    
+    mCommandQueue = (__bridge_retained void*)commandQueue;
+    
+    // 获取设备名称
+    mDeviceName = std::string([[device name] UTF8String]);
     
     std::cout << "[RenderContextMtl] Metal设备初始化成功" << std::endl;
 }
@@ -54,17 +54,29 @@ void RenderContextMtl::initializeMetalDevice() {
 void RenderContextMtl::detectCapabilities() {
     std::cout << "[RenderContextMtl] 检测Metal功能..." << std::endl;
     
-    // TODO: 实际实现中应该检查设备特性
-    // mSupportsDepthClipMode = [mDevice supportsFeatureSet:MTLFeatureSet_macOS_GPUFamily1_v1];
-    // mSupportsArgumentBuffers = [mDevice supportsFeatureSet:MTLFeatureSet_macOS_GPUFamily1_v3];
-    // mSupportsTessellation = [mDevice supportsFeatureSet:MTLFeatureSet_macOS_GPUFamily1_v2];
-    // mSupportsRaytracing = [mDevice supportsRaytracing];
+    id<MTLDevice> device = (__bridge id<MTLDevice>)mDevice;
+    if (!device) {
+        return;
+    }
     
-    // 模拟功能检测（假设为现代Apple芯片）
+    // 检查特性支持
+    #if TARGET_OS_OSX
+    mSupportsDepthClipMode = [device supportsFamily:MTLGPUFamilyMac2];
+    mSupportsArgumentBuffers = [device supportsFamily:MTLGPUFamilyMac2];
+    mSupportsTessellation = [device supportsFamily:MTLGPUFamilyMac2];
+    
+    // 光线追踪需要 macOS 11.0+ 和支持的GPU
+    if (@available(macOS 11.0, *)) {
+        mSupportsRaytracing = [device supportsRaytracing];
+    } else {
+        mSupportsRaytracing = false;
+    }
+    #else
     mSupportsDepthClipMode = true;
-    mSupportsArgumentBuffers = true;
-    mSupportsTessellation = true;
-    mSupportsRaytracing = true; // M3及以上
+    mSupportsArgumentBuffers = [device supportsFamily:MTLGPUFamilyApple4];
+    mSupportsTessellation = [device supportsFamily:MTLGPUFamilyApple3];
+    mSupportsRaytracing = false;
+    #endif
     
     std::cout << "[RenderContextMtl] 深度裁剪模式: " << (mSupportsDepthClipMode ? "支持" : "不支持") << std::endl;
     std::cout << "[RenderContextMtl] 参数缓冲区: " << (mSupportsArgumentBuffers ? "支持" : "不支持") << std::endl;

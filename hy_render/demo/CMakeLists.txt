@@ -76,3 +76,28 @@ target_link_libraries(advanced_scene_demo PRIVATE hy_render)
 set_target_properties(advanced_scene_demo PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
+
+# macOS Metal立方体演示
+if(APPLE AND HY_RENDER_ENABLE_METAL)
+    add_executable(metal_cube_demo metal_cube_demo.mm)
+    target_link_libraries(metal_cube_demo PRIVATE hy_render)
+    
+    # 链接macOS框架
+    find_library(COCOA_LIBRARY Cocoa)
+    find_library(METAL_LIBRARY Metal)
+    find_library(QUARTZCORE_LIBRARY QuartzCore)
+    
+    if(COCOA_LIBRARY AND METAL_LIBRARY AND QUARTZCORE_LIBRARY)
+        target_link_libraries(metal_cube_demo PRIVATE 
+            ${COCOA_LIBRARY}
+            ${METAL_LIBRARY}
+            ${QUARTZCORE_LIBRARY}
+        )
+    endif()
+    
+    set_target_properties(metal_cube_demo PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+    )
+    
+    message(STATUS "Metal Cube Demo will be built")
+endif()

@@ -4,6 +4,11 @@
 #include <memory>
 #include <string>
 
+#ifdef __OBJC__
+#import <Metal/Metal.h>
+#import <QuartzCore/CAMetalLayer.h>
+#endif
+
 namespace hyengine {
 namespace render {
 
@@ -57,12 +62,23 @@ private:
     void initializeMetalDevice();
     void detectCapabilities();
 
-private:
-    // Metal 设备对象（实际实现中应使用 id<MTLDevice>）
-    void* mDevice = nullptr;
+public:
+    /**
+     * @brief 获取Metal设备对象
+     */
+    void* getMetalDevice() const { return mDevice; }
     
-    // Metal 命令队列（实际实现中应使用 id<MTLCommandQueue>）
-    void* mCommandQueue = nullptr;
+    /**
+     * @brief 获取Metal命令队列
+     */
+    void* getMetalCommandQueue() const { return mCommandQueue; }
+
+private:
+    // Metal 设备对象
+    void* mDevice = nullptr;  // id<MTLDevice>
+    
+    // Metal 命令队列
+    void* mCommandQueue = nullptr;  // id<MTLCommandQueue>
     
     // 设备能力标志
     bool mSupportsDepthClipMode = false;

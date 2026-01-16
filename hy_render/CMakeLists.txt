@@ -148,6 +148,7 @@ if(HY_RENDER_ENABLE_METAL AND APPLE)
             src/metal/resources/RenderPassMtl.mm
             src/metal/resources/SamplerMtl.mm
             src/metal/resources/FenceMtl.mm
+            src/metal/resources/VertexArrayMtl.mm
             src/metal/resources/CommandBufferMtl.mm
             src/metal/debug/RenderDebuggerMtl.mm
         )
@@ -190,7 +191,7 @@ target_include_directories(hy_render
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 # 平台特定链接

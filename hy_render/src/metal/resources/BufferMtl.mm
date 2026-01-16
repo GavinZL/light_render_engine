@@ -1,4 +1,5 @@
 #include "BufferMtl.hpp"
+#import <Metal/Metal.h>
 #include <iostream>
 #include <cstring>
 
@@ -10,30 +11,50 @@ BufferMtl::BufferMtl(const BufferDesc& desc, void* device)
     
     std::cout << "[BufferMtl] 创建Metal缓冲区 (size: " << desc.size << " bytes)" << std::endl;
     
-    // TODO: 实际实现中应该：
-    // MTLResourceOptions options = MTLResourceStorageModeShared;
-    // 
-    // switch (desc.usage) {
-    //     case BufferUsage::USAGE_STATIC_DRAW:
-    //         options = MTLResourceStorageModePrivate;
-    //         break;
-    //     case BufferUsage::USAGE_DYNAMIC_DRAW:
-    //     case BufferUsage::USAGE_STREAM_DRAW:
-    //         options = MTLResourceStorageModeShared;
-    //         break;
-    // }
-    //
-    // mBuffer = [(__bridge id<MTLDevice>)mDevice newBufferWithLength:desc.size options:options];
-    //
-    // if (desc.initialData) {
-    //     if (options == MTLResourceStorageModeShared) {
-    //         memcpy([mBuffer contents], desc.initialData, desc.size);
-    //     } else {
-    //         // 使用临时缓冲区传输数据
-    //     }
-    // }
+    id<MTLDevice> mtlDevice = (__bridge id<MTLDevice>)device;
+    if (!mtlDevice) {
+        std::cerr << "[BufferMtl] 错误: Metal设备无效" << std::endl;
+        return;
+    }
     
-    mBuffer = reinterpret_cast<void*>(0x100);
+    // 根据用途选择存储模式
+    MTLResourceOptions options = MTLResourceStorageModeShared;
+    
+    switch (desc.usage) {
+        case BufferUsage::USAGE_STATIC_DRAW:
+            // 静态数据可以使用Private模式以获得更好性能
+            #if TARGET_OS_OSX
+            options = MTLResourceStorageModeManaged;
+            #else
+            options = MTLResourceStorageModeShared;
+            #endif
+            break;
+        case BufferUsage::USAGE_DYNAMIC_DRAW:
+        case BufferUsage::USAGE_STREAM_DRAW:
+            // 动态数据使用Shared模式便于CPU访问
+            options = MTLResourceStorageModeShared;
+            break;
+    }
+    
+    // 创建Metal缓冲区
+    id<MTLBuffer> buffer = [mtlDevice newBufferWithLength:desc.size options:options];
+    if (!buffer) {
+        std::cerr << "[BufferMtl] 错误: 无法创建Metal缓冲区" << std::endl;
+        return;
+    }
+    
+    mBuffer = (__bridge_retained void*)buffer;
+    
+    // 如果有初始数据，复制到缓冲区
+    if (desc.initialData && desc.size > 0) {
+        memcpy([buffer contents], desc.initialData, desc.size);
+        
+        #if TARGET_OS_OSX
+        if (options == MTLResourceStorageModeManaged) {
+            [buffer didModifyRange:NSMakeRange(0, desc.size)];
+        }
+        #endif
+    }
     
     std::cout << "[BufferMtl] 缓冲区类型: ";
     if (desc.bindFlags & BIND_VERTEX_BUFFER) std::cout << "VERTEX ";
@@ -44,7 +65,9 @@ BufferMtl::BufferMtl(const BufferDesc& desc, void* device)
 
 BufferMtl::~BufferMtl() {
     if (mBuffer) {
-        // TODO: [mBuffer release];
+        // 释放Metal缓冲区
+        id<MTLBuffer> buffer = (__bridge_transfer id<MTLBuffer>)mBuffer;
+        buffer = nil;
         std::cout << "[BufferMtl] 销毁Metal缓冲区" << std::endl;
         mBuffer = nullptr;
     }
@@ -63,9 +86,22 @@ void BufferMtl::updateData(const void* data, uint32_t offset, uint32_t size) {
     
     std::cout << "[BufferMtl] 更新数据 (offset: " << offset << ", size: " << size << ")" << std::endl;
     
-    // TODO: 实际实现
-    // uint8_t* bufferPointer = (uint8_t*)[mBuffer contents];
-    // memcpy(bufferPointer + offset, data, size);
+    id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)mBuffer;
+    if (!buffer) {
+        std::cerr << "[BufferMtl] 错误: 缓冲区无效" << std::endl;
+        return;
+    }
+    
+    // 复制数据到缓冲区
+    uint8_t* bufferPointer = (uint8_t*)[buffer contents];
+    memcpy(bufferPointer + offset, data, size);
+    
+    #if TARGET_OS_OSX
+    // macOS上如果是Managed模式，需要通知修改范围
+    if ([buffer storageMode] == MTLStorageModeManaged) {
+        [buffer didModifyRange:NSMakeRange(offset, size)];
+    }
+    #endif
 }
 
 uint32_t BufferMtl::count() const {
@@ -106,7 +142,6 @@ void* BufferMtl::map(uint32_t offset, uint32_t size, MemoryAccess access) {
     std::cout << "[BufferMtl] 映射Metal缓冲区 (offset: " << offset 
               << ", size: " << size << ", access: ";
     
-    // 输出访问模式
     switch (access) {
         case MemoryAccess::READ_ONLY: std::cout << "READ_ONLY"; break;
         case MemoryAccess::WRITE_ONLY: std::cout << "WRITE_ONLY"; break;
@@ -114,22 +149,22 @@ void* BufferMtl::map(uint32_t offset, uint32_t size, MemoryAccess access) {
     }
     std::cout << ")" << std::endl;
     
-    // TODO: 在实际的Metal环境中：
-    // if (mBuffer && [mBuffer storageMode] == MTLStorageModeShared) {
-    //     // Shared模式直接返回内存指针
-    //     mMappedPtr = (uint8_t*)[mBuffer contents] + offset;
-    //     mIsMapped = true;
-    //     return mMappedPtr;
-    // } else {
-    //     // Private模式需要使用BlitCommandEncoder复制数据
-    //     std::cerr << "[BufferMtl] Private storage mode buffers cannot be mapped directly" << std::endl;
-    //     return nullptr;
-    // }
+    id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)mBuffer;
+    if (!buffer) {
+        std::cerr << "[BufferMtl] 错误: 缓冲区无效" << std::endl;
+        return nullptr;
+    }
     
-    // 模拟映射成功
-    mIsMapped = true;
-    mMappedPtr = reinterpret_cast<void*>(0x12345678 + offset); // 模拟指针
-    return mMappedPtr;
+    // Metal的Shared和Managed模式可以直接映射
+    if ([buffer storageMode] == MTLStorageModeShared || 
+        [buffer storageMode] == MTLStorageModeManaged) {
+        mMappedPtr = (uint8_t*)[buffer contents] + offset;
+        mIsMapped = true;
+        return mMappedPtr;
+    } else {
+        std::cerr << "[BufferMtl] 错误: Private存储模式的缓冲区无法直接映射" << std::endl;
+        return nullptr;
+    }
 }
 
 void BufferMtl::unmap() {
@@ -140,9 +175,13 @@ void BufferMtl::unmap() {
     
     std::cout << "[BufferMtl] 取消Metal缓冲区映射" << std::endl;
     
-    // TODO: 在实际的Metal环境中：
-    // Metal中的Shared模式缓冲区不需要显式取消映射
-    // 只需要清理指针即可
+    #if TARGET_OS_OSX
+    // macOS上如果是Managed模式，需要通知修改
+    id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)mBuffer;
+    if (buffer && [buffer storageMode] == MTLStorageModeManaged) {
+        [buffer didModifyRange:NSMakeRange(0, mDesc.size)];
+    }
+    #endif
     
     mIsMapped = false;
     mMappedPtr = nullptr;
