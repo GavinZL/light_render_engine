@@ -1,1 +1,5 @@
-hy_render/build
+.cache
+build
+display
+.qorder
+.qoder/repowiki/

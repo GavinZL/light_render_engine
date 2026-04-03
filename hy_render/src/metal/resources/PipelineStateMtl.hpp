@@ -11,7 +11,7 @@ namespace render {
 class PipelineStateMtl : public HYPipelineState {
 public:
     PipelineStateMtl(const PipelineStateDesc& desc, void* device);
-    virtual ~PipelineStateMtl() = default;
+    virtual ~PipelineStateMtl();
 
     void enableBlend(bool flag) override;
     void enableDepth(bool flag) override;
@@ -20,6 +20,7 @@ public:
     void enableScissor(bool flag) override;
     void setPrimitive(PrimitiveType mode) override;
     void apply();  // Metal特有方法，不是override
+    bool build(void* shader, void* vertexDesc);  // 构建Metal管线状态
     const PipelineStateDesc& getDesc() const override { return mDesc; }
     ResourceHandle getResourceHandle() const override;
 

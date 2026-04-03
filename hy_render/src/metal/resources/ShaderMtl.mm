@@ -1,6 +1,9 @@
 #include "ShaderMtl.hpp"
+#import <Metal/Metal.h>
 #include <iostream>
 #include <unordered_map>
+#include <fstream>
+#include <sstream>
 
 namespace hyengine {
 namespace render {
@@ -12,11 +15,94 @@ ShaderMtl::ShaderMtl(const ShaderDesc& desc, void* device)
 }
 
 ShaderMtl::~ShaderMtl() {
+    if (mVertexFunction) {
+        CFRelease(mVertexFunction);
+        mVertexFunction = nullptr;
+    }
+    if (mFragmentFunction) {
+        CFRelease(mFragmentFunction);
+        mFragmentFunction = nullptr;
+    }
+    if (mLibrary) {
+        CFRelease(mLibrary);
+        mLibrary = nullptr;
+    }
     std::cout << "[ShaderMtl] 销毁Metal着色器" << std::endl;
 }
 
 bool ShaderMtl::compile() {
-    std::cout << "[ShaderMtl] 编译Metal着色器 (使用MSL)" << std::endl;
+    id<MTLDevice> device = (__bridge id<MTLDevice>)mDevice;
+    if (!device) {
+        std::cerr << "[ShaderMtl] 错误: Metal设备无效" << std::endl;
+        return false;
+    }
+    
+    NSError* error = nil;
+    id<MTLLibrary> library = nil;
+    std::string vertexEntryPoint;
+    std::string fragmentEntryPoint;
+    
+    // 检查是否有着色器代码
+    if (mDesc.shaderCodeDesc.empty()) {
+        std::cerr << "[ShaderMtl] 错误: 没有提供着色器代码" << std::endl;
+        return false;
+    }
+    
+    // 假设所有阶段的代码在同一个源文件中（Metal常见做法）
+    // 获取第一个着色器代码作为源
+    const auto& firstShader = mDesc.shaderCodeDesc[0];
+    
+    std::cout << "[ShaderMtl] 从源代码编译Metal着色器" << std::endl;
+    
+    NSString* source = [NSString stringWithUTF8String:firstShader.shaderCode];
+    library = [device newLibraryWithSource:source options:nil error:&error];
+    
+    if (!library) {
+        std::cerr << "[ShaderMtl] 编译着色器源代码失败: " 
+                  << [[error localizedDescription] UTF8String] << std::endl;
+        return false;
+    }
+    
+    // 从 shaderCodeDesc 中提取入口点函数名
+    id<MTLFunction> vertexFunc = nil;
+    id<MTLFunction> fragmentFunc = nil;
+    
+    for (const auto& shaderCode : mDesc.shaderCodeDesc) {
+        if (shaderCode.shaderStage == ShaderStage::kShaderStage_Vertex) {
+            vertexEntryPoint = shaderCode.entryFunction;
+            NSString* funcName = [NSString stringWithUTF8String:vertexEntryPoint.c_str()];
+            vertexFunc = [library newFunctionWithName:funcName];
+            if (!vertexFunc) {
+                std::cerr << "[ShaderMtl] 找不到顶点函数: " << vertexEntryPoint << std::endl;
+                return false;
+            }
+        } else if (shaderCode.shaderStage == ShaderStage::kShaderStage_Fragment) {
+            fragmentEntryPoint = shaderCode.entryFunction;
+            NSString* funcName = [NSString stringWithUTF8String:fragmentEntryPoint.c_str()];
+            fragmentFunc = [library newFunctionWithName:funcName];
+            if (!fragmentFunc) {
+                std::cerr << "[ShaderMtl] 找不到片段函数: " << fragmentEntryPoint << std::endl;
+                return false;
+            }
+        }
+    }
+    
+    if (!vertexFunc || !fragmentFunc) {
+        std::cerr << "[ShaderMtl] 缺少顶点或片段着色器" << std::endl;
+        return false;
+    }
+    
+    // 释放旧的资源
+    if (mLibrary) CFRelease(mLibrary);
+    if (mVertexFunction) CFRelease(mVertexFunction);
+    if (mFragmentFunction) CFRelease(mFragmentFunction);
+    
+    // 保存到成员变量
+    mLibrary = (__bridge_retained void*)library;
+    mVertexFunction = (__bridge_retained void*)vertexFunc;
+    mFragmentFunction = (__bridge_retained void*)fragmentFunc;
+    
+    std::cout << "[ShaderMtl] 着色器编译成功" << std::endl;
     return true;
 }
 
@@ -228,6 +314,10 @@ ResourceHandle ShaderMtl::getFragmentStageHandle() const {
     ResourceHandle handle;
     handle.ptrHandle = mFragmentFunction;
     return handle;
+}
+
+void* ShaderMtl::getMetalLibrary() const {
+    return mLibrary;
 }
 
 ResourceHandle ShaderMtl::getResourceHandle() const {
